@@ -5,11 +5,53 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.geom.Line2D;
+import java.util.HashMap;
 import javax.swing.*;
 
 
 public class Main extends JPanel implements KeyListener {
 
+    static class Option {
+        Object value;
+        Object step;
+
+        public Option(Object value, Object step){
+            this.value = value;
+            this.step = step;
+        }
+
+        public Option(Object value){
+            this(value, 0);
+        }
+
+        public void step_up(){
+            if (value instanceof Double) {
+                System.out.println("|first| " + value + " | " + step);
+                value = (double) value + (double) step;
+                System.out.println("|second| " + value + " | " + step);
+
+            } else if (value instanceof Boolean) {
+                value = !(boolean) value;
+            } else {
+                System.out.println("else");
+            }
+        }
+
+        public void step_down(){
+            if (value instanceof Double) {
+                value = (double) value - (double) step;
+            }
+        }
+
+        public Object get(){
+            return value;
+        }
+
+    }
+
+//    static ArrayList<Option> options = new ArrayList<>();
+
+    static HashMap<String, Option> options = new HashMap<>();
 
     int center_h = 1000/2;
     int center_v = 1000/2;
@@ -33,6 +75,13 @@ public class Main extends JPanel implements KeyListener {
     boolean aa = true;
     boolean invert_colors = false;
     boolean stop = false;
+
+    public static void init(){
+//        options.add(new Option(100, 10));
+//        options.add(new Option(true));
+        options.put("arm_length", new Option(100.0, 100.0));
+        options.put("invert_colors", new Option(false));
+    }
 
     public void drawCircle(Graphics g, int x, int y, int width, int level) {
         if (level >= 1) {
@@ -81,6 +130,8 @@ public class Main extends JPanel implements KeyListener {
     }
 
     public void paintComponent(Graphics g) {
+//        options.get("arm_length").step_up();
+//        System.out.println(options.get("arm_length").get());
 //        System.out.println(game_time);
         long real_time = System.currentTimeMillis();
         long delta_time = real_time - last_time;
@@ -117,8 +168,9 @@ public class Main extends JPanel implements KeyListener {
 
         double angle = (Math.PI * 2 * secs / 60) - (Math.PI / 2);
 
-        double x2 = Math.round(Math.cos(angle) * arm_length);
-        double y2 = Math.round(Math.sin(angle) * arm_length);
+        double x2 = Math.round(Math.cos(angle) * (double) options.get("arm_length").get());
+        double y2 = Math.round(Math.sin(angle) * (double) options.get("arm_length").get());
+
 
         return new double[]{x2, y2};
     }
@@ -129,12 +181,14 @@ public class Main extends JPanel implements KeyListener {
 
     public static void main(String[] args) {
 
+        init();
+
         Main panel = new Main();
         JFrame window = new JFrame();
         panel.setBackground(Color.WHITE);
         window.addKeyListener(panel);
 
-        window.setTitle("Recursion");
+        window.setTitle("Fractal Clock");
         window.setSize(1000, 1000);
         window.setVisible(true);
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -183,8 +237,11 @@ public class Main extends JPanel implements KeyListener {
                 case KeyEvent.VK_RIGHT -> split_factor += 1;
                 case KeyEvent.VK_LEFT -> split_factor -= 1;
 
-                case KeyEvent.VK_EQUALS -> arm_length += 10;
-                case KeyEvent.VK_MINUS -> arm_length -= 10;
+//                case KeyEvent.VK_EQUALS -> arm_length += 10;
+//                case KeyEvent.VK_MINUS -> arm_length -= 10;
+
+                case KeyEvent.VK_EQUALS -> options.get("arm_length").step_up();
+                case KeyEvent.VK_MINUS -> options.get("arm_length").step_down();
 
                 case KeyEvent.VK_CLOSE_BRACKET -> init_stroke += 1;
                 case KeyEvent.VK_OPEN_BRACKET -> init_stroke -= 1;
@@ -199,6 +256,7 @@ public class Main extends JPanel implements KeyListener {
                 case KeyEvent.VK_F -> invert_colors = !invert_colors;
                 case KeyEvent.VK_A -> aa = !aa;
                 case KeyEvent.VK_SPACE -> stop = !stop;
+                case KeyEvent.VK_M -> Menu.create_menu_window();
                 case KeyEvent.VK_Q -> System.exit(0);
 
                 case KeyEvent.VK_1 -> {
@@ -250,4 +308,6 @@ public class Main extends JPanel implements KeyListener {
     public void keyReleased(KeyEvent e) {
 
     }
+
+
 }
