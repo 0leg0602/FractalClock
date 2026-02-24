@@ -2,87 +2,112 @@ package project;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicLong;
+import java.awt.event.KeyEvent;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Menu extends JPanel{
 
-    public static void main(String[] args) {
-       return;
-    }
+    static HashMap<String, JLabel> option_labels = new HashMap<>();
 
     public static void create_menu_window(){
-//        options.add()
-
-//        Option test2 = new Option("test", Main.arm_length, 10);
 
         Menu panel = new Menu();
         JFrame window = new JFrame();
         panel.setBackground(Color.WHITE);
 
         window.setTitle("Menu");
-        window.setSize(200, 500);
-
-//        JLabel label = new JLabel("Hello, Swing Label!");
-//        panel.add(label);
+        window.setSize(400, 500);
 
         panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
-        // Components will fill horizontally and have some padding
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5); // Add 5px padding on all sides
+        gbc.insets = new Insets(5, 5, 5, 5);
 
-        // Button 1: top-left (0,0)
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        panel.add(new JLabel("arm length"), gbc);
+        int i = 0;
 
-        // Button 2: top-right (1,0)
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        panel.add(new JLabel("0"), gbc);
+        for (Map.Entry<String, Main.Option> entry : Main.options.entrySet()) {
 
-        // Button 3: middle row (0,1), spans 2 columns
-        gbc.gridx = 2;
-        gbc.gridy = 0;
-//        gbc.gridwidth = 2; // Span two columns
-        JButton button = new JButton("-");
-        panel.add(button, gbc);
-//        button.addActionListener(e -> {
-//            System.out.println("Button was clicked!");
-////            Main.arm_length += 10;
-//            test2.value = test2.value + 10;
-//            test2
-//        });
+            Main.Option value = entry.getValue();
+            String key = entry.getKey();
+            gbc.gridy = i;
 
-        // Button 4: bottom-left (0,2)
-        gbc.gridx = 3;
-        gbc.gridy = 0;
-        panel.add(new JButton("+"), gbc);
+            gbc.gridx = 0;
+            panel.add(new JLabel(key), gbc);
 
-        // Button 5: bottom-right (1,2), uses extra vertical space
-//        gbc.gridx = 1;
-//        gbc.gridy = 2;
-//        gbc.weighty = 1.0; // Request extra vertical space
-//        gbc.fill = GridBagConstraints.BOTH; // Fill both horizontally and vertically
-//        panel.add(new JButton("Button 5"), gbc);
+            gbc.gridx = 1;
+            JLabel option_label = new JLabel("0");
+            panel.add(option_label, gbc);
+            option_labels.put(key, option_label);
 
-//        JTextField textField = new JTextField(20);
-//        JButton button = new JButton("Submit");
-//        panel.add(textField);
-//        panel.add(button);
+            if(value.get() instanceof  Boolean){
+                gbc.gridx = 2;
+                JButton button_minus = new JButton("!");
+                panel.add(button_minus, gbc);
+
+                button_minus.addActionListener(e -> {
+                    value.step_up();
+                    update();
+                });
+
+                gbc.gridx = 5;
+                panel.add(new JLabel(KeyEvent.getKeyText(value.key_up)), gbc);
+            } else {
+                gbc.gridx = 2;
+                JButton button_minus = new JButton("-");
+                panel.add(button_minus, gbc);
+
+                button_minus.addActionListener(e -> {
+                    value.step_down();
+                    update();
+                });
+
+                gbc.gridx = 3;
+                JButton button_plus = new JButton("+");
+                panel.add(button_plus, gbc);
+
+                button_plus.addActionListener(e -> {
+                    value.step_up();
+                    update();
+                });
+                gbc.gridx = 5;
+                if (key.equals("time_factor")){
+                    panel.add(new JLabel("Shift/Ctrl arrows"), gbc);
+                } else {
+                    panel.add(new JLabel(KeyEvent.getKeyText(value.key_up) + " | " + KeyEvent.getKeyText(value.key_down) ), gbc);
+                }
+            }
+
+
+
+
+            i++;
+        }
 
         window.setVisible(true);
         window.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         window.add(panel);
 
-//        new Timer(16, e -> {
-//            panel.repaint();
+        update();
+
+//        new Timer(100, e -> {
+//        update();
 //        }).start();
     }
 
     public static void update(){
+        for (Map.Entry<String, JLabel> entry : option_labels.entrySet()) {
 
+            JLabel value = entry.getValue();
+            String key = entry.getKey();
+            Object main_val = Main.options.get(key).get();
+
+            if (main_val instanceof Double){
+                value.setText(String.format("%.2f", (double) Main.options.get(key).get()));
+            } else {
+                value.setText(Main.options.get(key).get().toString());
+            }
+        }
     }
 }

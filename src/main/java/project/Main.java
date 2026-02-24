@@ -6,6 +6,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.geom.Line2D;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import javax.swing.*;
 
 
@@ -14,22 +16,25 @@ public class Main extends JPanel implements KeyListener {
     static class Option {
         Object value;
         Object step;
+        int key_up;
+        int key_down;
 
-        public Option(Object value, Object step){
+        public Option(Object value, Object step, int key_up, int key_down){
             this.value = value;
             this.step = step;
+            this.key_up = key_up;
+            this.key_down = key_down;
         }
 
-        public Option(Object value){
-            this(value, 0);
+        public Option(Object value, int key_up){
+            this(value, 0, key_up, -1);
         }
 
         public void step_up(){
             if (value instanceof Double) {
-                System.out.println("|first| " + value + " | " + step);
                 value = (double) value + (double) step;
-                System.out.println("|second| " + value + " | " + step);
-
+            } else if (value instanceof Integer) {
+                value = (int) value + (int) step;
             } else if (value instanceof Boolean) {
                 value = !(boolean) value;
             } else {
@@ -40,7 +45,19 @@ public class Main extends JPanel implements KeyListener {
         public void step_down(){
             if (value instanceof Double) {
                 value = (double) value - (double) step;
+            } else if (value instanceof Integer) {
+                value = (int) value - (int) step;
             }
+        }
+
+        public void step_by(double step_amount){
+            if (value instanceof Double) {
+                value = (double) value + step_amount;
+            }
+        }
+
+        public void set(Object set_value){
+            value = set_value;
         }
 
         public Object get(){
@@ -49,9 +66,8 @@ public class Main extends JPanel implements KeyListener {
 
     }
 
-//    static ArrayList<Option> options = new ArrayList<>();
 
-    static HashMap<String, Option> options = new HashMap<>();
+    static LinkedHashMap<String, Option> options = new LinkedHashMap<>();
 
     int center_h = 1000/2;
     int center_v = 1000/2;
@@ -59,45 +75,40 @@ public class Main extends JPanel implements KeyListener {
     long last_time = System.currentTimeMillis();
     double game_time = 0;
 
-    // Options
-    int max_level = 1;
-    int arm_length = 100;
-    float init_stroke = 1F;
-    int split_factor = 0;
 
-    double stroke_factor = 0;
-    double length_factor = 0;
-    double fade_factor = 0;
-    double time_factor = 1;
-    double separation_factor = 1;
-
-    boolean init_arrow = true;
-    boolean aa = true;
-    boolean invert_colors = false;
-    boolean stop = false;
+    static HashMap<Integer, String> options_keys = new HashMap<>();
 
     public static void init(){
-//        options.add(new Option(100, 10));
-//        options.add(new Option(true));
-        options.put("arm_length", new Option(100.0, 100.0));
-        options.put("invert_colors", new Option(false));
-    }
+        options.put("arm_length", new Option(100.0, 10.0, KeyEvent.VK_EQUALS, KeyEvent.VK_MINUS));
+        options.put("max_level", new Option(0, 1, KeyEvent.VK_UP, KeyEvent.VK_DOWN));
+        options.put("split_factor", new Option(0, 1, KeyEvent.VK_RIGHT, KeyEvent.VK_LEFT));
 
-    public void drawCircle(Graphics g, int x, int y, int width, int level) {
-        if (level >= 1) {
-            g.drawOval(x, y, width, width);
-            drawCircle(g, x-width/4, y, width/2,  level-1);
+        options.put("init_stroke", new Option(1.0, 1.0, KeyEvent.VK_CLOSE_BRACKET, KeyEvent.VK_OPEN_BRACKET));
+        options.put("stroke_factor", new Option(0.0, 0.1, KeyEvent.VK_QUOTE, KeyEvent.VK_SEMICOLON));
+        options.put("fade_factor", new Option(0.0, 1.0, KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD));
+        options.put("time_factor", new Option(1.0, 1.0, -1, -1));
+
+        options.put("invert_colors", new Option(false, KeyEvent.VK_F));
+        options.put("init_arrow", new Option(true, KeyEvent.VK_I));
+        options.put("aa", new Option(true, KeyEvent.VK_A));
+        options.put("stop", new Option(false, KeyEvent.VK_SPACE));
+
+        for (Map.Entry<String, Option> entry : options.entrySet()) {
+            Option value = entry.getValue();
+            String key = entry.getKey();
+            options_keys.put(value.key_up, key + " up");
+            options_keys.put(value.key_down, key+ " down");
         }
     }
 
     public void draw_clock(Graphics2D g2d, double x1, double y1, double x2, double y2, int level){
-        if (level <= max_level) {
-            if (level == 0 && init_arrow){
+        if (level <= (int) options.get("max_level").get()) {
+            if (level == 0 && (boolean) options.get("init_arrow").get()){
                 double[] pos_2 = get_clock_arrow_delta();
                 x2 = x2 + pos_2[0];
                 y2 = y2 + pos_2[1];
             }
-            float stroke_num = (float) (init_stroke + (level*stroke_factor));
+            float stroke_num = (float) ( (double) options.get("init_stroke").get() + (level * (double) options.get("stroke_factor").get()));
             Stroke stroke;
             if (stroke_num > 0){
                 stroke = new BasicStroke(stroke_num);
@@ -105,20 +116,19 @@ public class Main extends JPanel implements KeyListener {
                 stroke = new BasicStroke(0.1F);
             }
 
-            int fade = (int) (255 - (level * fade_factor));
+            int fade = (int) (255 - (level * (double) options.get("fade_factor").get()));
             if (fade < 0 ) {fade = 0;}
 
-            if(invert_colors){
+            if((boolean) options.get("invert_colors").get()){
                 g2d.setColor(new Color(255, 255, 255, fade));
             } else {
                 g2d.setColor(new Color(36, 36, 36, fade));
             }
 
             g2d.setStroke(stroke);
-//            g2d.drawLine(x1, y1, x2, y2);
             g2d.draw(new Line2D.Double(x1, y1, x2, y2));
 
-            for (int i = 0; i < split_factor; i++) {
+            for (int i = 0; i < (int) options.get("split_factor").get(); i++) {
                 double[] pos_2 = get_clock_arrow_delta(level + i + 1);
                 draw_clock(g2d, x2, y2, x2+pos_2[0], y2+pos_2[1],level + 1);
             }
@@ -130,14 +140,11 @@ public class Main extends JPanel implements KeyListener {
     }
 
     public void paintComponent(Graphics g) {
-//        options.get("arm_length").step_up();
-//        System.out.println(options.get("arm_length").get());
-//        System.out.println(game_time);
         long real_time = System.currentTimeMillis();
         long delta_time = real_time - last_time;
         last_time = real_time;
-        if (!stop){
-            game_time += (double) (delta_time * time_factor);
+        if (! (boolean) options.get("stop").get()){
+            game_time += (delta_time * (double) options.get("time_factor").get());
         }
 
         super.paintComponent(g);
@@ -147,13 +154,13 @@ public class Main extends JPanel implements KeyListener {
         center_v = window_size.height/2;
         center_h = window_size.width/2;
 
-        if (aa){
+        if ((boolean) options.get("aa").get()){
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         } else {
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
         }
 
-        if(invert_colors){
+        if((boolean) options.get("invert_colors").get()){
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillRect(0, 0, window_size.width, window_size.height);
         }
@@ -164,7 +171,7 @@ public class Main extends JPanel implements KeyListener {
     public double[] get_clock_arrow_delta(int shift){
 
         double secs = ( game_time / 1000 ) % 60;
-        secs = secs * ((shift*separation_factor) + 1);
+        secs = secs * ((shift) + 1);
 
         double angle = (Math.PI * 2 * secs / 60) - (Math.PI / 2);
 
@@ -194,9 +201,7 @@ public class Main extends JPanel implements KeyListener {
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         window.add(panel);
 
-        new Timer(16, e -> {
-            panel.repaint();
-        }).start();
+        new Timer(16, e -> panel.repaint()).start();
 
 
 
@@ -210,6 +215,7 @@ public class Main extends JPanel implements KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        Menu.update();
         int key_code = e.getKeyCode();
         int key_mods = e.getModifiersEx();
 
@@ -217,89 +223,87 @@ public class Main extends JPanel implements KeyListener {
             switch (key_code){
                 case KeyEvent.VK_RIGHT -> game_time += 1;
                 case KeyEvent.VK_LEFT -> game_time -= 1;
-
-                case KeyEvent.VK_UP -> separation_factor += 0.01;
-                case KeyEvent.VK_DOWN -> separation_factor -= 0.01;
             }
         } else if (key_mods == InputEvent.SHIFT_DOWN_MASK){
             switch (key_code){
                 case KeyEvent.VK_RIGHT -> game_time += 10;
                 case KeyEvent.VK_LEFT -> game_time -= 10;
 
-                case KeyEvent.VK_UP -> time_factor += 0.05;
-                case KeyEvent.VK_DOWN -> time_factor -= 0.05;
+                case KeyEvent.VK_UP -> options.get("time_factor").step_by(0.05);
+                case KeyEvent.VK_DOWN -> options.get("time_factor").step_by(-0.05);
+            }
+        } else if (options_keys.containsKey(key_code)){
+
+            String key_dir = options_keys.get(key_code);
+            String[] key_dir_split = key_dir.split(" ");
+
+            String key = key_dir_split[0];
+            String dir = key_dir_split[1];
+            if (dir.equals("up")){
+                options.get(key).step_up();
+            } else {
+                options.get(key).step_down();
             }
         } else {
             switch (key_code){
-                case KeyEvent.VK_UP -> max_level+=1;
-                case KeyEvent.VK_DOWN -> max_level-=1;
-
-                case KeyEvent.VK_RIGHT -> split_factor += 1;
-                case KeyEvent.VK_LEFT -> split_factor -= 1;
-
-//                case KeyEvent.VK_EQUALS -> arm_length += 10;
-//                case KeyEvent.VK_MINUS -> arm_length -= 10;
-
-                case KeyEvent.VK_EQUALS -> options.get("arm_length").step_up();
-                case KeyEvent.VK_MINUS -> options.get("arm_length").step_down();
-
-                case KeyEvent.VK_CLOSE_BRACKET -> init_stroke += 1;
-                case KeyEvent.VK_OPEN_BRACKET -> init_stroke -= 1;
-
-                case KeyEvent.VK_QUOTE -> stroke_factor += 0.1;
-                case KeyEvent.VK_SEMICOLON -> stroke_factor -= 0.1;
-
-                case KeyEvent.VK_COMMA -> fade_factor -= 1;
-                case KeyEvent.VK_PERIOD -> fade_factor += 1;
-
-                case KeyEvent.VK_I -> init_arrow = !init_arrow;
-                case KeyEvent.VK_F -> invert_colors = !invert_colors;
-                case KeyEvent.VK_A -> aa = !aa;
-                case KeyEvent.VK_SPACE -> stop = !stop;
-                case KeyEvent.VK_M -> Menu.create_menu_window();
                 case KeyEvent.VK_Q -> System.exit(0);
+                case KeyEvent.VK_M -> Menu.create_menu_window();
 
                 case KeyEvent.VK_1 -> {
-                    arm_length = 100;
-                    init_stroke = 5;
-                    split_factor = 6;
-                    fade_factor = 48;
-                    init_arrow = false;
-                    max_level = 4;
-                    stroke_factor = -0.9;
+                    options.get("arm_length").set(100.0);
+                    options.get("init_stroke").set(5.0);
+                    options.get("split_factor").set(6);
+                    options.get("fade_factor").set(48.0);
+                    options.get("init_arrow").set(false);
+                    options.get("max_level").set(4);
+                    options.get("stroke_factor").set(-0.9);
                 }
 
                 case KeyEvent.VK_2 -> {
-                    max_level = 2;
-                    arm_length = 150;
-                    split_factor = 15;
-                    init_arrow = false;
+                    options.get("max_level").set(2);
+                    options.get("arm_length").set(150.0);
+                    options.get("split_factor").set(15);
+                    options.get("init_arrow").set(false);
                 }
 
                 case KeyEvent.VK_3 -> {
-                    max_level = 6;
-                    arm_length = 300;
-                    split_factor = 4;
-                    init_arrow = false;
-                    aa = false;
+                    options.get("max_level").set(6);
+                    options.get("arm_length").set(300.0);
+                    options.get("split_factor").set(4);
+                    options.get("init_arrow").set(false);
+                    options.get("aa").set(false);
+                }
+
+                case KeyEvent.VK_4 -> {
+                    options.get("max_level").set(3);
+                    options.get("arm_length").set(160.0);
+                    options.get("init_stroke").set(0.0);
+                    options.get("split_factor").set(15);
+
+                    options.get("stroke_factor").set(2.6);
+                    options.get("fade_factor").set(78.0);
+
+                    options.get("init_arrow").set(false);
+                    options.get("aa").set(false);
+                    options.get("invert_colors").set(false);
                 }
 
                 case KeyEvent.VK_0 -> {
-                    max_level = 1;
-                    arm_length = 100;
-                    init_stroke = 1F;
-                    split_factor = 0;
+                    options.get("max_level").set(1);
+                    options.get("arm_length").set(100.0);
+                    options.get("init_stroke").set(1.0);
+                    options.get("split_factor").set(0);
 
-                    stroke_factor = 0;
-                    length_factor = 0;
-                    fade_factor = 0;
+                    options.get("stroke_factor").set(0.0);
+                    options.get("fade_factor").set(0.0);
 
-                    init_arrow = true;
-                    aa = true;
-                    invert_colors = false;
+                    options.get("init_arrow").set(true);
+                    options.get("aa").set(true);
+                    options.get("invert_colors").set(false);
                 }
             }
         }
+
 
 
     }
