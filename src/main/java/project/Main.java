@@ -1,6 +1,15 @@
 package project;
 
-import java.awt.*;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
@@ -8,17 +17,54 @@ import java.awt.geom.Line2D;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.swing.*;
+
+/**
+ * @author Oleg
+ * <br>
+ * time_start: ???
+ * time_finish: Fri Feb 27 00:53:01 EST 2026
+ * <br>
+ * Take insparation from "<a href="https://www.egui.rs/#clock">egui Fractal Clock</a>"
+ * <br>
+ * I wanted to try to make my own Fractal Clock
+ * <br>
+ * I made the clock fully customiziable, all the customizable valuases as well as thier shortcuts are visiable in the Menu
+ * <br>
+ * The menu can be open with key "M"
+ * <br>
+ * There are some shortcutst which are not listed in the menu
+ * First presents keys from 1 to 4 change the clock to my custom premade presets
+ * <br>
+ * Second is mod keys, shift arrow up speeds up the clock, shift arrow down slows down
+ * <br>
+ * Shift arrow left moves clock by 10 frames backwards, right arrow forward
+ * <br>
+ * Shift arrow left moves clock by 1 frame backwards, right arrow forward
+ *
+ */
 
 
 public class Main extends JPanel implements KeyListener {
 
+    /**
+     *  Custom class for every option for the fractal clock
+     */
     static class Option {
+
         Object value;
         Object step;
         int key_up;
         int key_down;
 
+        /**
+         * I have not used class Object much before, so I decided to give it a try.
+         * It is defensively not the most organized or efficient way of storing options,
+         * but I am just trying new thing out.
+         * @param value The actual value for the option, my logic expects it to be Integer, Double, or Boolean.
+         * @param step When step_{up, down} is called how much should the value move by.
+         * @param key_up Key code to trigger step_up.
+         * @param key_down Key code to trigger step_down.
+         */
         public Option(Object value, Object step, int key_up, int key_down){
             this.value = value;
             this.step = step;
@@ -26,10 +72,19 @@ public class Main extends JPanel implements KeyListener {
             this.key_down = key_down;
         }
 
+        /**
+         * Constructor, but for boolean, for simplicity key_down is set to -1,
+         * because changing a boolean value requires only 1 key.
+         * @param value The actual value for the option, for this constructor value should be a boolean
+         * @param key_up Key code to flip the boolean value
+         */
         public Option(Object value, int key_up){
             this(value, 0, key_up, -1);
         }
 
+        /**
+         * Increase the value by the step
+         */
         public void step_up(){
             if (value instanceof Double) {
                 value = (double) value + (double) step;
@@ -42,6 +97,9 @@ public class Main extends JPanel implements KeyListener {
             }
         }
 
+        /**
+         * Decrease the value by the step
+         */
         public void step_down(){
             if (value instanceof Double) {
                 value = (double) value - (double) step;
@@ -50,23 +108,40 @@ public class Main extends JPanel implements KeyListener {
             }
         }
 
+        /**
+         * Change value by a specific amount
+         * (Only works for double)
+         */
         public void step_by(double step_amount){
             if (value instanceof Double) {
                 value = (double) value + step_amount;
             }
         }
 
+        /**
+         * Set value to a specific value
+         * @param set_value the value to set it to
+         */
         public void set(Object set_value){
             value = set_value;
         }
 
+        /**
+         * Getter
+         * @return the value
+         */
         public Object get(){
             return value;
         }
 
     }
 
-
+    /**
+     * All the options are stored in a hash map
+     * however when drawing the menu I simply iterate through the hash map
+     * if I use regular hash map instead of the linked one the order is going to be random,
+     * but I want the buttons on the menu to have a certain order.
+     */
     static LinkedHashMap<String, Option> options = new LinkedHashMap<>();
 
     int center_h = 1000/2;
@@ -75,9 +150,17 @@ public class Main extends JPanel implements KeyListener {
     long last_time = System.currentTimeMillis();
     double game_time = 0;
 
-
+    /**
+     * Second hash map this time the order does not matter
+     * It is a sort of wrapper for the options hash map
+     * which allows me to conviniently call it like this:
+     * options.get(options_keys.get(key_code));
+     */
     static HashMap<Integer, String> options_keys = new HashMap<>();
 
+    /**
+     * Initialize the options and options_keys hash maps
+     */
     public static void init(){
         options.put("arm_length", new Option(100.0, 10.0, KeyEvent.VK_EQUALS, KeyEvent.VK_MINUS));
         options.put("max_level", new Option(0, 1, KeyEvent.VK_UP, KeyEvent.VK_DOWN));
@@ -101,6 +184,15 @@ public class Main extends JPanel implements KeyListener {
         }
     }
 
+    /**
+     * recursively drawing the clock
+     * @param g2d Graphics
+     * @param x1 initial x
+     * @param y1 initial y
+     * @param x2 final x
+     * @param y2 final y
+     * @param level what level of recursion this is zero being the first
+     */
     public void draw_clock(Graphics2D g2d, double x1, double y1, double x2, double y2, int level){
         if (level <= (int) options.get("max_level").get()) {
             if (level == 0 && (boolean) options.get("init_arrow").get()){
@@ -135,11 +227,20 @@ public class Main extends JPanel implements KeyListener {
         }
     }
 
+    /**
+     * Simple wrapper to make paintComponent less cluttered
+     * @param g2d Graphics
+     */
     public void draw_clock(Graphics2D g2d){
         draw_clock(g2d, center_h, center_v, center_h, center_v, 0);
     }
 
+    @Override
     public void paintComponent(Graphics g) {
+        if ( (double) options.get("fade_factor").get() < 0.0) {
+            options.get("fade_factor").set(0.0);
+            Menu.update();
+        }
         long real_time = System.currentTimeMillis();
         long delta_time = real_time - last_time;
         last_time = real_time;
@@ -168,6 +269,13 @@ public class Main extends JPanel implements KeyListener {
         draw_clock(g2d);
     }
 
+    /**
+     * How much the arrow point need to be shifted on x and y
+     * based on what is the current time is
+     * @param shift how much to rotate the arrow from the original position
+     *              if none of the arrows were shifted the recursion would draw one long straight line.
+     * @return int array first element being x cord and second y cord
+     */
     public double[] get_clock_arrow_delta(int shift){
 
         double secs = ( game_time / 1000 ) % 60;
@@ -215,7 +323,6 @@ public class Main extends JPanel implements KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        Menu.update();
         int key_code = e.getKeyCode();
         int key_mods = e.getModifiersEx();
 
@@ -303,9 +410,7 @@ public class Main extends JPanel implements KeyListener {
                 }
             }
         }
-
-
-
+        Menu.update();
     }
 
     @Override
